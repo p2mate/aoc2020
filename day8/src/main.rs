@@ -1,6 +1,8 @@
-use std::io::{self, BufRead, BufReader};
+use std::{io::{self, BufRead, BufReader}, env::var};
 use std::path::Path;
 use std::str::FromStr;
+use std::fmt::{self,Display};
+
 #[derive(Debug, Clone)]
 enum Opcode {
     Nop(i32),
@@ -24,6 +26,27 @@ impl FromStr for Opcode {
             _ => Err(OpcodeParseErr),
         };
         ins
+    }
+}
+
+impl Display for Opcode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let opcodestr = match self {
+            Opcode::Nop(_) => "nop",
+            Opcode::Acc(_) => "acc",
+            Opcode::Jmp(_) => "jmp",
+        };
+        write!(f, "{:<3}", opcodestr)
+    }
+}
+
+impl Opcode {
+    fn get_offset(&self) -> i32 {
+        match self {
+            Opcode::Nop(x) => *x,
+            Opcode::Acc(x) => *x,
+            Opcode::Jmp(x) => *x,
+        }
     }
 }
 
@@ -83,8 +106,11 @@ impl HandHeld {
         self.ip += 1;
     }
 
-    fn run(&mut self) -> i32 {
+    fn run(&mut self, trace: bool) -> i32 {
         while self.ip < self.memory.len() as i32 {
+            if trace {
+                self.memory[self.ip as usize].count += 1;
+            }
             self.execute_instruction();
         }
         self.acc
@@ -114,6 +140,16 @@ impl HandHeld {
             m.count = 0;
         }
     }
+
+    fn dump_memory(&mut self) {
+        for (addr, c) in self.memory.iter().enumerate() {
+            let address = match c.ins {
+                Opcode::Jmp(x) => format!("({})", x + addr as i32),
+                _ => String::from(""),
+            };
+            println!("{:<5} {:<3} {:<5} {:<5} {}", addr, c.ins, c.ins.get_offset(), address, c.count );
+        }
+    }
 }
 fn main() -> io::Result<()> {
     let mut hh = HandHeld::load_program(std::env::args().skip(1).next().unwrap())?;
@@ -121,6 +157,8 @@ fn main() -> io::Result<()> {
     println!("acc: {}", hh.acc);
     hh.reset();
     hh.patch_program();
-    println!("acc after patching: {}", hh.run());
+    hh.reset();
+    println!("acc after patching: {}", hh.run(true));
+    hh.dump_memory();
     Ok(())
 }
