@@ -75,7 +75,7 @@ fn main() -> io::Result<()> {
 
     let mut ship = Ship {
         pos: Position { x: 0, y: 0 },
-        heading: Position { x: 1, y: 0 },
+        heading: EAST,
     };
     for l in buffer.clone() {
         let cmd = l.split_at(1);
